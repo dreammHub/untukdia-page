@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Untukmu ❤️</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: black;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+    perspective: 1000px;
+  }
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-style: preserve-3d;
+    transition: transform 0.4s ease-in-out;
+  }
+</style>
+</head>
+<body>
+
+<!-- Musik romantis -->
+<audio id="bgMusic" autoplay loop>
+  <source src="music.mp3" type="audio/mpeg">
+</audio>
+
+<canvas id="loveCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('loveCanvas');
+const ctx = canvas.getContext('2d');
+function resize(){ canvas.width=innerWidth; canvas.height=innerHeight; }
+window.addEventListener('resize',resize); resize();
+
+// FOTO PNG lokal dari folder images/
+const photoURLs = [
+  "images/foto1.png",
+  "images/foto2.png",
+  "images/foto3.png",
+  "images/foto4.png"
+];
+const photos = photoURLs.map(src => {
+  let img = new Image();
+  img.src = src;
+  return img;
+});
+
+// Teks romantis
+const loveTexts = [
+  "I love you ❤️",
+  "Forever with you 💕",
+  "You are my everything 🌸",
+  "Always in my heart 💖",
+  "I miss you so much 💫"
+];
+
+// Bintang berkedip
+const stars = Array.from({length:300}).map(()=>({
+  x:Math.random()*innerWidth,
+  y:Math.random()*innerHeight,
+  size:Math.random()*2+0.5,
+  opacity:Math.random()
+}));
+
+// Objek jatuh
+const items = [];
+const totalItems = 80;
+let tiltX = 0, tiltY = 0; 
+let zoomLevel = 1;
+let isZoomed = false;
+
+function newItem(){
+  let r=Math.random();
+  let obj={
+    y: -50,
+    x: Math.random()*canvas.width,
+    speed: Math.random()*2+1,
+    opacity: Math.random()*0.5+0.5,
+    depth: Math.random()*0.5+0.5
+  };
+  if(r<0.3){
+    obj.type='heart';
+    obj.size=Math.random()*35+15;
+  } else if(r<0.6){
+    obj.type='text';
+    obj.size=Math.random()*28+20;
+    obj.text = loveTexts[Math.floor(Math.random()*loveTexts.length)];
+  } else {
+    obj.type='photo';
+    obj.img=photos[Math.floor(Math.random()*photos.length)];
+    obj.scale = Math.random()*0.3+0.5;
+  }
+  return obj;
+}
+for(let i=0;i<totalItems;i++) items.push(newItem());
+
+// Gambar hati
+function drawHeart(x,y,size,opacity){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.scale(size/50,size/50);
+  ctx.fillStyle=`rgba(255,0,80,${opacity})`;
+  ctx.beginPath();
+  ctx.moveTo(0,30);
+  ctx.bezierCurveTo(0,0,-50,0,-50,30);
+  ctx.bezierCurveTo(-50,60,0,80,0,100);
+  ctx.bezierCurveTo(0,80,50,60,50,30);
+  ctx.bezierCurveTo(50,0,0,0,0,30);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Bintang berkedip
+function drawStars(){
+  stars.forEach(s=>{
+    ctx.fillStyle=`rgba(255,255,255,${s.opacity})`;
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,s.size,0,Math.PI*2);
+    ctx.fill();
+    s.opacity += (Math.random()-0.5)*0.05;
+    if(s.opacity<0.1) s.opacity=0.1;
+    if(s.opacity>1) s.opacity=1;
+  });
+}
+
+function animate(){
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  drawStars();
+
+  items.forEach(o=>{
+    let offsetX = tiltX * (1 - o.depth) * 20;
+    let offsetY = tiltY * (1 - o.depth) * 20;
+
+    let drawX = o.x + offsetX;
+    let drawY = o.y + offsetY;
+
+    if(o.type==='heart'){
+      drawHeart(drawX,drawY,o.size,o.opacity);
+
+    } else if(o.type==='text'){
+      ctx.save();
+      ctx.translate(drawX, drawY);
+      ctx.rotate((tiltX+tiltY) * 0.01);
+      ctx.font=`${o.size}px Arial`;
+      ctx.fillStyle=`rgba(255,200,255,${o.opacity})`;
+      ctx.textAlign='center';
+      ctx.fillText(o.text, 0, 0);
+      ctx.restore();
+
+    } else if(o.type==='photo'){
+      if(o.img.complete){
+        let baseHeight = 200 * o.scale;
+        let baseWidth  = baseHeight * 0.8;
+        ctx.save();
+        ctx.translate(drawX + baseWidth/2, drawY + baseHeight/2);
+        ctx.rotate((tiltX * 0.005) + (tiltY * 0.005));
+        ctx.globalAlpha = o.opacity;
+        ctx.drawImage(o.img, -baseWidth/2, -baseHeight/2, baseWidth, baseHeight);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+    }
+
+    o.y += o.speed;
+    o.x += tiltX * 0.3;
+
+    if(o.y > canvas.height + 150 || o.x < -250 || o.x > canvas.width+250){
+      Object.assign(o,newItem());
+      o.y = -50;
+    }
+  });
+
+  requestAnimationFrame(animate);
+}
+animate();
+
+// Tilt HP
+if(window.DeviceOrientationEvent){
+  window.addEventListener("deviceorientation",(e)=>{
+    tiltX = e.gamma/30;
+    tiltY = e.beta/30;
+    updateCanvasTransform();
+  });
+}
+
+function updateCanvasTransform(){
+  canvas.style.transform = `scale(${zoomLevel}) rotateY(${tiltX*2}deg) rotateX(${tiltY*2}deg)`;
+}
+
+// Double tap untuk zoom in/out
+let lastTap = 0;
+window.addEventListener("touchend", (e)=>{
+  const now = new Date().getTime();
+  const diff = now - lastTap;
+  if(diff < 300 && diff > 0){
+    isZoomed = !isZoomed;
+    zoomLevel = isZoomed ? 1.3 : 1;
+    updateCanvasTransform();
+  }
+  lastTap = now;
+});
+
+// Musik autoplay
+const music=document.getElementById("bgMusic");
+music.play().catch(()=>{
+  window.addEventListener("click",()=>music.play(),{once:true});
+  window.addEventListener("touchstart",()=>music.play(),{once:true});
+});
+</script>
+</body>
+</html>
